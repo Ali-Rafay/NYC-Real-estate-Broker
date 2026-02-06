@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Real Estate Database Import Script - FINAL VERSION
-Handles ALL coordinate formats including parentheses in Location 1 column
-"""
-
 import sqlite3
 import pandas as pd
 import os
@@ -17,7 +11,7 @@ import re
 
 class RealEstateDatabase:
     def __init__(self, db_path='database/real_estate.db', data_dir='data'):
-        """Initialize the database connection"""
+
         self.db_path = db_path
         self.data_dir = data_dir
         
@@ -27,7 +21,7 @@ class RealEstateDatabase:
         self.cursor = self.conn.cursor()
         
     def create_schema(self, schema_file='real_estate_database_schema.sql'):
-        """Create database schema from SQL file"""
+ 
         print("Creating database schema...")
         try:
             with open(schema_file, 'r') as f:
@@ -40,7 +34,7 @@ class RealEstateDatabase:
             raise
     
     def clean_coordinate(self, value):
-        """Clean and validate coordinate values"""
+  
         try:
             if pd.isna(value) or value == '' or value is None:
                 return None
@@ -52,29 +46,23 @@ class RealEstateDatabase:
             return None
     
     def parse_location_1_parentheses(self, location_str):
-        """
-        Parse Location 1 column with coordinates in parentheses format:
-        Example: '333 EAST 4 STREET\nMANHATTAN, NY 10009\n(40.722075, -73.978747)'
-        Returns: (latitude, longitude) or (None, None)
-        """
+
         try:
             if not location_str or pd.isna(location_str):
                 return None, None
             
             location_str = str(location_str)
-            
-            # Look for pattern: (number, number) at the end
-            # This regex finds (lat, lon) with optional whitespace
+
             pattern = r'\(([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)\)'
             matches = re.findall(pattern, location_str)
             
             if matches:
-                # Take the last match (coordinates are usually at the end)
+
                 lat_str, lon_str = matches[-1]
                 lat = self.clean_coordinate(lat_str)
                 lon = self.clean_coordinate(lon_str)
                 
-                # Validate it's in reasonable range
+
                 if lat and lon and -90 <= lat <= 90 and -180 <= lon <= 180:
                     return lat, lon
             
@@ -84,18 +72,14 @@ class RealEstateDatabase:
         return None, None
     
     def parse_location_1_json(self, location_str):
-        """
-        Parse Location 1 column with JSON/dict format:
-        Example: "{'latitude': '40.578488319967', 'longitude': '-73.989497148121', ...}"
-        Returns: (latitude, longitude) or (None, None)
-        """
+
         try:
             if not location_str or pd.isna(location_str):
                 return None, None
             
             location_str = str(location_str)
             
-            # Try to extract latitude and longitude from string representation of dict
+
             lat_match = re.search(r"'latitude':\s*'([+-]?\d+\.?\d*)'", location_str)
             lon_match = re.search(r"'longitude':\s*'([+-]?\d+\.?\d*)'", location_str)
             
@@ -112,7 +96,7 @@ class RealEstateDatabase:
         return None, None
     
     def parse_point_string(self, point_str):
-        """Parse 'POINT (longitude latitude)' WKT format"""
+
         try:
             if not point_str or pd.isna(point_str):
                 return None, None
@@ -133,14 +117,11 @@ class RealEstateDatabase:
         return None, None
     
     def extract_coordinates(self, row, df_columns):
-        """
-        Try ALL methods to extract valid lat/lon coordinates
-        Returns: (latitude, longitude) or (None, None)
-        """
+
         latitude = None
         longitude = None
         
-        # Method 1: Direct Latitude/Longitude columns
+
         if 'Latitude' in df_columns or 'LATITUDE' in df_columns:
             lat = self.clean_coordinate(row.get('Latitude') or row.get('LATITUDE'))
             if lat and -90 <= lat <= 90:
@@ -151,21 +132,21 @@ class RealEstateDatabase:
             if lon and -180 <= lon <= 180:
                 longitude = lon
         
-        # Method 2: Location 1 column - try BOTH formats
+
         if (latitude is None or longitude is None) and 'Location 1' in df_columns:
             location_val = row.get('Location 1')
             
-            # Try parentheses format first (for schools)
+
             lat, lon = self.parse_location_1_parentheses(location_val)
             if lat is not None and lon is not None:
                 latitude, longitude = lat, lon
             else:
-                # Try JSON/dict format (for health facilities)
+
                 lat, lon = self.parse_location_1_json(location_val)
                 if lat is not None and lon is not None:
                     latitude, longitude = lat, lon
         
-        # Method 3: GTFS Latitude/Longitude (for transit)
+
         if latitude is None and 'GTFS Latitude' in df_columns:
             lat = self.clean_coordinate(row.get('GTFS Latitude'))
             if lat and -90 <= lat <= 90:
@@ -176,13 +157,13 @@ class RealEstateDatabase:
             if lon and -180 <= lon <= 180:
                 longitude = lon
         
-        # Method 4: Try POINT format
+
         if (latitude is None or longitude is None) and 'Georeference' in df_columns:
             lat, lon = self.parse_point_string(row.get('Georeference'))
             if lat is not None and lon is not None:
                 latitude, longitude = lat, lon
         
-        # Method 5: X_COORDINATE and Y_COORDINATE (only if in lat/lon range, not State Plane)
+  
         if latitude is None and 'Y_COORDINATE' in df_columns:
             y = self.clean_coordinate(row.get('Y_COORDINATE'))
             if y and -90 <= y <= 90:
@@ -193,9 +174,9 @@ class RealEstateDatabase:
             if x and -180 <= x <= 180:
                 longitude = x
         
-        # Final validation for NYC area
+
         if latitude is not None and longitude is not None:
-            # NYC bounds: roughly 40.4-41.0 N, -74.3 to -73.7 W
+
             if 40.0 <= latitude <= 41.0 and -75.0 <= longitude <= -73.0:
                 return latitude, longitude
         
@@ -238,7 +219,7 @@ class RealEstateDatabase:
                         skipped_no_data += 1
                         continue
                     
-                    # Extract coordinates using robust method
+
                     latitude, longitude = self.extract_coordinates(row, df.columns)
                     
                     if latitude is None or longitude is None:
@@ -311,7 +292,6 @@ class RealEstateDatabase:
                     
                     hospital_id = f"HF_{idx}_{name[:20].replace(' ', '_')}"
                     
-                    # Extract coordinates - will handle both direct columns and Location 1 JSON
                     latitude, longitude = self.extract_coordinates(row, df.columns)
                     
                     if latitude is None or longitude is None:
@@ -354,7 +334,7 @@ class RealEstateDatabase:
             raise
     
     def import_transit_stations(self):
-        """Import MTA subway stations data from CSV"""
+
         print("\nImporting transit stations data...")
         try:
             file_path = os.path.join(self.data_dir, 'MTA_Subway_Stations.csv')
@@ -425,7 +405,6 @@ class RealEstateDatabase:
             raise
     
     def import_properties(self):
-        """Import property listings data from CSV"""
         print("\nImporting properties data...")
         try:
             file_path = os.path.join(self.data_dir, 'NY-House-Dataset.csv')
@@ -491,7 +470,7 @@ class RealEstateDatabase:
             raise
     
     def import_crime_data_from_api(self, api_url=None, limit=10000):
-        """Import crime data from NYC Open Data API"""
+
         print("\nImporting crime data from API...")
         
         if api_url is None:
@@ -548,7 +527,7 @@ class RealEstateDatabase:
             print("  Continuing without crime data...")
     
     def calculate_neighborhood_stats(self):
-        """Calculate and store neighborhood statistics"""
+
         print("\nCalculating neighborhood statistics...")
         try:
             self.cursor.execute('DELETE FROM neighborhood_stats')
@@ -630,7 +609,7 @@ class RealEstateDatabase:
             traceback.print_exc()
     
     def get_summary_stats(self):
-        """Print summary statistics"""
+
         print("\n" + "="*60)
         print("DATABASE SUMMARY")
         print("="*60)
@@ -654,11 +633,11 @@ class RealEstateDatabase:
         print("="*60)
     
     def close(self):
-        """Close database connection"""
+
         self.conn.close()
 
 def main():
-    """Main execution function"""
+
     print("="*60)
     print("REAL ESTATE DATABASE IMPORT TOOL - FINAL")
     print("="*60)

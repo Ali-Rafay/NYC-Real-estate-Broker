@@ -1,25 +1,17 @@
-#!/usr/bin/env python3
-"""
-Query Helper for Real Estate Database
-Provides convenient methods for querying property and amenity data
-"""
-
 import sqlite3
 import math
 
 class RealEstateQueryHelper:
     def __init__(self, db_path):
-        """Initialize database connection"""
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
     
     def calculate_distance(self, lat1, lon1, lat2, lon2):
-        """Calculate distance between two points using Haversine formula"""
         if None in [lat1, lon1, lat2, lon2]:
             return None
         
-        R = 6371  # Earth's radius in kilometers
+        R = 6371 
         
         lat1_rad = math.radians(lat1)
         lat2_rad = math.radians(lat2)
@@ -35,7 +27,6 @@ class RealEstateQueryHelper:
     
     def search_properties(self, min_price=None, max_price=None, beds=None, 
                          baths=None, borough=None, neighborhood=None, limit=50):
-        """Search properties with various criteria"""
         query = "SELECT * FROM properties WHERE 1=1"
         params = []
         
@@ -65,7 +56,6 @@ class RealEstateQueryHelper:
         return [dict(row) for row in results]
     
     def get_property_by_id(self, property_id):
-        """Get a single property by ID"""
         result = self.cursor.execute(
             "SELECT * FROM properties WHERE property_id = ?",
             (property_id,)
@@ -73,7 +63,6 @@ class RealEstateQueryHelper:
         return dict(result) if result else None
     
     def get_nearby_schools(self, latitude, longitude, radius_km=1.0):
-        """Get schools within radius"""
         schools = self.cursor.execute(
             "SELECT * FROM schools WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
         ).fetchall()
@@ -92,7 +81,6 @@ class RealEstateQueryHelper:
         return sorted(nearby, key=lambda x: x['distance_km'])
     
     def get_nearby_hospitals(self, latitude, longitude, radius_km=1.0):
-        """Get hospitals within radius"""
         hospitals = self.cursor.execute(
             "SELECT * FROM health_facilities WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
         ).fetchall()
@@ -111,7 +99,6 @@ class RealEstateQueryHelper:
         return sorted(nearby, key=lambda x: x['distance_km'])
     
     def get_nearby_transit(self, latitude, longitude, radius_km=1.0):
-        """Get transit stations within radius"""
         stations = self.cursor.execute(
             "SELECT * FROM transit_stations WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
         ).fetchall()
@@ -130,7 +117,6 @@ class RealEstateQueryHelper:
         return sorted(nearby, key=lambda x: x['distance_km'])
     
     def get_nearby_crimes(self, latitude, longitude, radius_km=1.0):
-        """Get crime incidents within radius and statistics"""
         crimes = self.cursor.execute(
             "SELECT * FROM crime_data WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
         ).fetchall()
@@ -146,15 +132,15 @@ class RealEstateQueryHelper:
                 crime_dict['distance_km'] = round(dist, 2)
                 nearby_crimes.append(crime_dict)
         
-        # Calculate statistics
+    
         crime_stats = {
             'total_crimes': len(nearby_crimes),
             'by_offense': {},
             'by_level': {},
-            'crimes': nearby_crimes[:20]  # Return only first 20 for performance
+            'crimes': nearby_crimes[:20]  
         }
         
-        # Count by offense type
+       
         for crime in nearby_crimes:
             offense = crime.get('offense_description', 'Unknown')
             level = crime.get('offense_level', 'Unknown')
@@ -165,7 +151,6 @@ class RealEstateQueryHelper:
         return crime_stats
     
     def get_property_price_analysis(self, property_id):
-        """Get comprehensive property analysis including nearby amenities"""
         prop = self.get_property_by_id(property_id)
         
         if not prop:
@@ -176,7 +161,6 @@ class RealEstateQueryHelper:
             'price_per_sqft': round(prop['price'] / prop['sqft'], 2) if prop['sqft'] else None
         }
         
-        # Get nearby amenities if coordinates available
         if prop.get('latitude') and prop.get('longitude'):
             analysis['nearby_amenities'] = {
                 'schools': self.get_nearby_schools(prop['latitude'], prop['longitude']),
@@ -185,7 +169,6 @@ class RealEstateQueryHelper:
                 'crime_stats': self.get_nearby_crimes(prop['latitude'], prop['longitude'])
             }
         
-        # Get neighborhood stats
         if prop.get('neighborhood') and prop.get('borough'):
             neighborhood_stats = self.cursor.execute(
                 "SELECT * FROM neighborhood_stats WHERE neighborhood = ? AND borough = ?",
@@ -198,12 +181,10 @@ class RealEstateQueryHelper:
         return analysis
     
     def get_borough_statistics(self):
-        """Get statistics for all boroughs"""
         results = self.cursor.execute(
             "SELECT * FROM borough_statistics ORDER BY property_count DESC"
         ).fetchall()
         return [dict(row) for row in results]
     
     def close(self):
-        """Close database connection"""
         self.conn.close()

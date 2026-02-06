@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Flask Web Application for Real Estate Database
-A simple web interface for searching properties and analyzing neighborhoods
-"""
 
 from flask import Flask, render_template, request, jsonify
 import sqlite3
@@ -13,14 +8,14 @@ app = Flask(__name__)
 app.config['DATABASE'] = 'database/real_estate.db'
 
 def get_db():
-    """Get database connection"""
+    
     conn = sqlite3.connect(app.config['DATABASE'])
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.route('/')
 def index():
-    """Home page with search form"""
+    
     return '''
     <!DOCTYPE html>
     <html>
@@ -232,10 +227,10 @@ def index():
 
 @app.route('/search')
 def search_properties():
-    """Search properties based on criteria"""
+    
     helper = RealEstateQueryHelper(app.config['DATABASE'])
     
-    # Get search parameters
+
     criteria = {}
     if request.args.get('min_price'):
         criteria['min_price'] = int(request.args.get('min_price'))
@@ -248,10 +243,10 @@ def search_properties():
     
     criteria['limit'] = 50
     
-    # Search properties
+   
     properties = helper.search_properties(**criteria)
     
-    # Build HTML response
+   
     html = f'''
     <!DOCTYPE html>
     <html>
@@ -456,7 +451,7 @@ def property_detail(property_id):
     prop = analysis['property']
     amenities = analysis.get('nearby_amenities', {})
     
-    # Build detailed view
+  
     html = f'''
     <!DOCTYPE html>
     <html>
@@ -582,7 +577,7 @@ def property_detail(property_id):
             </div>
     '''
     
-    # Nearby schools
+
     if amenities.get('schools'):
         html += '''
         <div class="section">
@@ -599,7 +594,7 @@ def property_detail(property_id):
             '''
         html += '</div></div>'
     
-    # Nearby hospitals
+
     if amenities.get('hospitals'):
         html += '''
         <div class="section">
@@ -616,7 +611,7 @@ def property_detail(property_id):
             '''
         html += '</div></div>'
     
-    # Nearby transit
+
     if amenities.get('transit_stations'):
         html += '''
         <div class="section">
@@ -634,12 +629,12 @@ def property_detail(property_id):
             '''
         html += '</div></div>'
     
-    # Crime Statistics
+
     if amenities.get('crime_stats'):
         crime_stats = amenities['crime_stats']
         crime_count = crime_stats.get('total_crimes', 0)
         
-        # Determine safety rating based on crime count
+
         if crime_count < 10:
             safety_level = "Low Crime Area"
             safety_color = "#28a745"
@@ -674,7 +669,6 @@ def property_detail(property_id):
             </div>
         '''
         
-        # Show crime breakdown by type if available
         if crime_stats.get('by_offense'):
             html += '''
             <h3 style="margin-bottom: 15px; color: #333;">Crime Types</h3>
